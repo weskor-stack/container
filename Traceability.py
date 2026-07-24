@@ -24,7 +24,8 @@ import time
 import configurator_view
 import platform
 import logging
-import traceback
+import invoke_api
+import json
 
 def configurar_logging():
     """Configura el sistema de logging"""
@@ -250,14 +251,6 @@ def safe_exit():
     print("Cerrando aplicación...")
     logging.info(f"Cerrando aplicación...")
 
-    # Cerrar ventanas de login/logout si existen
-    for window in [login_window, logout_window]:
-        if window is not None:
-            try:
-                window.destroy()
-            except:
-                pass
-
     running = False
 
     # Cerrar conexiones activas
@@ -335,9 +328,9 @@ lbl_piece.place(x=450, y=60)
 entry_piece = ctk.CTkEntry(master=frame, width=300, justify="center", state="readonly")
 entry_piece.place(x=500, y=60)
 
-texto = ctk.CTkTextbox(master=frame, height=230, width=700, state="disabled")
+texto = ctk.CTkTextbox(master=frame, height=480, width=700, state="disabled")
 texto.place(x=50, y=150)
-font=ctk.CTkFont(family='Arial', size=16)
+font=ctk.CTkFont(family='Arial', size=12)
 
 lbl_comand = ctk.CTkLabel(master=frame, text='Command:')
 
@@ -424,10 +417,10 @@ button_configurator = ctk.CTkButton(
 )
 
 label_user = ctk.CTkLabel(master=frame, text="User:")
-label_user.place(x=1050, y=250)
+# label_user.place(x=1050, y=250)
 
 label_users = ctk.CTkLabel(master=frame, text="Admin")
-label_users.place(x=1090, y=250)
+# label_users.place(x=1090, y=250)
 
 headers = [["Measurement","Value","Lower limit","Upper limit","Type","Unit","Result"]]
 
@@ -549,7 +542,7 @@ class SafeTableManager:
             print(f"[TABLE ERROR] {e}")
 
 # Crear el manejador
-table_manager = SafeTableManager(frame)
+# table_manager = SafeTableManager(frame)
 
 # Crear el manejador seguro de tabla
 # table_manager = SafeTableManager()
@@ -557,13 +550,13 @@ table_manager = SafeTableManager(frame)
 ########################################################
 # FUNCIONES DE MANEJO DE TABLA
 ########################################################
-def update_table_with_data(new_data):
-    """Actualiza la tabla con nuevos datos de forma segura"""
-    table_manager.add_data(new_data)
+# def update_table_with_data(new_data):
+#     """Actualiza la tabla con nuevos datos de forma segura"""
+#     table_manager.add_data(new_data)
 
-def clear_table_data():
-    """Limpia la tabla de forma segura"""
-    table_manager.clear()
+# def clear_table_data():
+#     """Limpia la tabla de forma segura"""
+#     table_manager.clear()
 
 ####################################################################################################################################################################################
 exit_event = threading.Event()
@@ -643,8 +636,6 @@ def worker(conn, addr):
                 match option[0]:
                     case "start":
                         entry_piece.focus_set()
-
-                        clear_table_data()
                         
                         if len(option) == 2 and option[-1] == '1/':
                             entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
@@ -679,21 +670,57 @@ def worker(conn, addr):
                                         else:
                                             pass
                                     if len(name_piece) > 27:
+                                        valor_unit = ""
+                                        numero_parte = ""
+                                        respuesta_json_unit = ""
+                                        valor_interlocking = ""
+                                        interlocking_json = ""
+                                        intrlocking_response = ""
+
                                         conn.settimeout(None)
                                         piece = name_piece + ", PASSED"
-                                        # try:
-                                        #     conn.send(piece.encode('UTF-8'))
-                                        # except Exception as e:
-                                        #     safe_insert(f"Error enviando: {e}", "red")
+                                       
                                         entry_piece.configure(state="readonly", textvariable=piece_name)
                                         piece_name.set(name_piece)
 
+                                        # INVOKE API UNIT
+                                        data_unit = invoke_api.invoke_api_unit(name_piece)
+                                        valor_unit = data_unit[0]
+                                        numero_parte = data_unit[1]
+                                        respuesta_json_unit = data_unit[2]
+                                        
+                                        if valor_unit == "FAILED":
+                                            safe_insert(numero_parte, "red")
+                                            logging.warning(numero_parte)
+                                            conn.send("FAILED".encode('UTF-8'))
+                                            break
+                                        
+                                        # INVOKE API INTERLOCKING
+                                        data_interlocking = invoke_api.invoke_api_interlocking(name_piece,numero_parte)
+                                        valor_interlocking = data_interlocking[0]
+                                        interlocking_json = data_interlocking[1]
+                                        intrlocking_response = data_interlocking[2]
+
+                                        if valor_interlocking == "FAILED":
+                                            safe_insert(interlocking_json, "red")
+                                            logging.warning(interlocking_json)
+                                            conn.send("FAILED".encode('UTF-8'))
+                                            break
+
+                                        pantalla_final = (
+                                            f"Command received-> {comando_completo} part: {name_piece}\nCommand PASSED\n\n"
+                                            f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_json_unit, indent=4, ensure_ascii=False)}\n\n"
+                                            f"[INTERLOCKING JSON]:\n{json.dumps(interlocking_json, indent=4, ensure_ascii=False)}\n\n"
+                                            f"[API INTERLOCKING RESPONSE]:\n{json.dumps(intrlocking_response, indent=2)}\n\n"
+                                        )
+                                        safe_insert(pantalla_final, "green")
+                                        # safe_insert(f"Command received-> {cadena} part: {name_piece}\nCommand PASSED\n", "green")
+                                        logging.info(f"Command received-> {cadena} part: {name_piece} - Command PASSED")
+
                                         conn.send(piece.encode('UTF-8'))
-                                        safe_insert("[ROUTE CHECK] Confirmation sent to PLC\n", "green")
-                                        logging.info("[ROUTE CHECK] Confirmation sent to PLC")
 
                                         # Almacenar la pieza en la base de datos
-                                        conexion.piece_store(name_piece)
+                                        conexion.piece_store2(name_piece,numero_parte)
                                                     
                                         # Registrar en bitácora
                                         conexionBitacora.event(
@@ -710,8 +737,8 @@ def worker(conn, addr):
                                         )
                                         conexionBitacora.event("CMD-P001", "|Command,PASSED|", month, day)
 
-                                        safe_insert(f"Command received-> {cadena} part: {name_piece}\nCommand PASSED\n", "green")
-                                        logging.info(f"Command received-> {cadena} part: {name_piece} - Command PASSED")
+                                        # safe_insert(f"Command received-> {cadena} part: {name_piece}\nCommand PASSED\n", "green")
+                                        # logging.info(f"Command received-> {cadena} part: {name_piece} - Command PASSED")
 
                                         green_label.configure(image=image_green_full)
                                         red_label.configure(image=image_red)
@@ -773,37 +800,81 @@ def worker(conn, addr):
                             name_piece =option[1]
 
                             if len(name_piece) > 27:
+                                valor_unit = ""
+                                numero_parte = ""
+                                respuesta_json_unit = ""
+                                valor_interlocking = ""
+                                interlocking_json = ""
+                                intrlocking_response = ""
+                            
+                                conn.settimeout(None)
                                 piece = name_piece + ", PASSED"
-
+                                                                   
                                 entry_piece.configure(state="readonly", textvariable=piece_name)
                                 piece_name.set(name_piece)
+                            
+                                # INVOKE API UNIT
+                                data_unit = invoke_api.invoke_api_unit(name_piece)
+                                valor_unit = data_unit[0]
+                                numero_parte = data_unit[1]
+                                respuesta_json_unit = data_unit[2]
+                                                                    
+                                if valor_unit == "FAILED":
+                                    safe_insert(numero_parte, "red")
+                                    logging.warning(numero_parte)
+                                    conn.send("FAILED".encode('UTF-8'))
+                                    break
+                                                                    
+                                # INVOKE API INTERLOCKING
+                                data_interlocking = invoke_api.invoke_api_interlocking(name_piece,numero_parte)
+                                valor_interlocking = data_interlocking[0]
+                                interlocking_json = data_interlocking[1]
+                                intrlocking_response = data_interlocking[2]
+                            
+                                if valor_interlocking == "FAILED":
+                                    safe_insert(interlocking_json, "red")
+                                    logging.warning(interlocking_json)
+                                    conn.send("FAILED".encode('UTF-8'))
+                                    break
+                            
+                                pantalla_final = (
+                                    f"Command received-> {comando_completo} part: {name_piece}\nCommand PASSED\n\n"
+                                    f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_json_unit, indent=4, ensure_ascii=False)}\n\n"
+                                    f"[INTERLOCKING JSON]:\n{json.dumps(interlocking_json, indent=4, ensure_ascii=False)}\n\n"
+                                    f"[API INTERLOCKING RESPONSE]:\n{json.dumps(intrlocking_response, indent=2)}\n\n"
+                                )
+                                safe_insert(pantalla_final, "green")
+                                # safe_insert(f"Command received-> {cadena} part: {name_piece}\nCommand PASSED\n", "green")
+                                logging.info(f"Command received-> {comando_completo} part: {name_piece} - Command PASSED")
+                                logging.info(f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_json_unit, indent=4, ensure_ascii=False)}")
+                                logging.info(f"[INTERLOCKING JSON]:\n{json.dumps(interlocking_json, indent=4, ensure_ascii=False)}")
+                                logging.info(f"[API INTERLOCKING RESPONSE]:\n{json.dumps(intrlocking_response, indent=2)}")
 
                                 conn.send(piece.encode('UTF-8'))
-                                
+                            
                                 # Almacenar la pieza en la base de datos
-                                conexion.piece_store(name_piece)
-                                                    
+                                conexion.piece_store2(name_piece,numero_parte)
+                                                                                
                                 # Registrar en bitácora
                                 conexionBitacora.event(
-                                "SPP-001",
-                                f"|Command received| {cadena} part: {name_piece} - Route check passed",
-                                month,
-                                day
+                                    "SPP-001",
+                                    f"|Command received| {cadena} part: {name_piece} - Route check passed",
+                                    month,
+                                    day
                                 )
                                 conexionBitacora.event(
-                                "CHKROUTE-001",
-                                f"Route check passed for ISN: {name_piece}",
-                                month,
-                                day
+                                    "CHKROUTE-001",
+                                    f"Route check passed for ISN: {name_piece}",
+                                    month,
+                                    day
                                 )
                                 conexionBitacora.event("CMD-P001", "|Command,PASSED|", month, day)
-
-                                safe_insert(f"Command received-> {cadena} part: {name_piece}\nCommand PASSED\n", "green")
-                                logging.info(f"Command received-> {cadena} part: {name_piece} - Command PASSED")
 
                                 green_label.configure(image=image_green_full)
                                 red_label.configure(image=image_red)
                                 pieza = name_piece
+
+                                break
 
                             else:
                                 conn.settimeout(None)
@@ -842,8 +913,7 @@ def worker(conn, addr):
                     case "reset":
                         for item in option:
                             cadena += str(item) + ","
-
-                        clear_table_data()
+                            
                         # part_name = entry_piece.get()
                         if len(entry_piece.get()) == 30:
                             part_name = entry_piece.get()
@@ -1158,7 +1228,7 @@ def worker(conn, addr):
                         pieza = ""
                     case "commit":
                         cadena = ""
-                        clear_table_data()
+                        
                         for item in option:
                             cadena += str(item) + ","
                         # print(cadena)
@@ -1180,9 +1250,7 @@ def worker(conn, addr):
                                 commit_options, table_data = commands.commit(cadena, part_name)
                         
                                 if(commit_options == 'PASSED'):
-                                    if table_data:
-                                        update_table_with_data(table_data)
-
+                                    
                                     safe_insert("Command received-> "+cadena+"\n"+"Command COMMIT PASSED"+"\n")
                                     try:
                                         conn.send("PASSED".encode('UTF-8'))
@@ -1232,8 +1300,6 @@ def worker(conn, addr):
                         pieza_padre = piece_name.get()
                         entry_piece.focus_set()
                         
-                        # Limpiar tabla al cambiar componente
-                        clear_table_data()
                         
                         if len(option) == 2 and option[-1] == '1/':
                             entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
@@ -1395,8 +1461,6 @@ def worker(conn, addr):
                         pieza_padre = piece_name.get()
                         entry_piece.focus_set()
                         
-                        # Limpiar tabla al cambiar componente
-                        clear_table_data()
                         
                         if len(option) == 2 and option[-1] == '1/':
                             entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
