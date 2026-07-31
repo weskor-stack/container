@@ -178,4 +178,4 @@ def mostrar_foto_final_con_cierre_automatico(imagen_base64, foto_original):
         time.sleep(2)
         cv2.destroyAllWindows()
 
-print(capturar_y_convertir())
+# print(capturar_y_convertir())
