@@ -2027,7 +2027,7 @@ def parameters_heatstake(element):
         return "FAILED"
 
 def parameters_graph(element):
-    print(element)
+    # print(element)
     try:
         # Obtener part activo
         with conn.cursor() as cursor:
@@ -2471,7 +2471,7 @@ def configurador():
         cursor.execute("""
             SELECT machine_id, process_name, operator, station, 
                    program_name_version, qty_components, client_id, password, shop_order, model_id,
-                   print_macro, location, shop_flor
+                   print_macro, location, shop_flor, attempts, qty_pcba
             FROM configurador 
             LIMIT 1
         """)
@@ -2594,7 +2594,7 @@ def obtener_image(serial_number):
     # Obtener part_id
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT part_id, part_number, model_id FROM part WHERE status_id = 2 AND part_number = %s ORDER BY part_id DESC LIMIT 1",(serial_number,))
+            cursor.execute("SELECT part_id, part_number, model_id FROM part WHERE status_id = 3 AND part_number = %s ORDER BY part_id DESC LIMIT 1",(serial_number,))
             part = cursor.fetchone()
         
         if not part:
@@ -3915,7 +3915,7 @@ def obtener_parte2(serial_number):
      # Obtener part_id
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT part_id, part_number, model_id, create_registration, description FROM part WHERE part_number = %s ORDER BY part_id DESC LIMIT 1",(serial_number,))
+            cursor.execute("SELECT part_id, part_number, description, model_id, create_registration, description FROM part WHERE part_number = %s ORDER BY part_id DESC LIMIT 1",(serial_number,))
             part = cursor.fetchone()
         
         if not part:
@@ -4151,6 +4151,41 @@ def duration_w68(element, name_piece):
     except Exception as e:
         # print(f"[ERROR] {e}")
         return "FAILED"
+############################################################################################################################################
+
+def continer_store(container,parte):
+    try:
+        # --- Obtener part activo ---
+        cursor = conn.cursor()
+        cursor.execute("SELECT part_id, part_number, model_id FROM part WHERE status_id = 3 AND part_number = %s ORDER BY part_id DESC LIMIT 1",(parte,))
+        part = cursor.fetchone()
+        cursor.close()
+
+        if not part:
+            # print("[ERROR] No se encontró una pieza activa.")
+            return "FAILED"
+
+        part_id = part[0]
+
+        # --- Insertar componente ---
+        cursor = conn.cursor()
+        sql = """
+            INSERT INTO container (data, status_serial_number_id, part_id)
+            VALUES (?, ?, ?)
+        """
+        cursor.execute(sql, (container, 1, part_id))
+        conn.commit()
+        cursor.close()
+
+        return "PASSED"
+
+    except mariadb.Error as e:
+        # print(f"[DB ERROR] component_store(): {e}")
+        return "FAILED"
+    except Exception as e:
+        # print(f"[ERROR] component_store(): {e}")
+        return "FAILED"
+
 ############################################################################################################################################
 
 # name = "P1895152-00-G:SHG2242791000290"
