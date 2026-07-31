@@ -690,8 +690,8 @@ def worker(conn, addr):
                                         respuesta_json_unit = data_unit[2]
                                         
                                         if valor_unit == "FAILED":
-                                            safe_insert(numero_parte, "red")
-                                            logging.warning(numero_parte)
+                                            safe_insert(f"{numero_parte}", "red")
+                                            logging.warning(f"{numero_parte}")
                                             conn.send("FAILED".encode('UTF-8'))
                                             break
                                         
@@ -702,8 +702,8 @@ def worker(conn, addr):
                                         intrlocking_response = data_interlocking[2]
 
                                         if valor_interlocking == "FAILED":
-                                            safe_insert(interlocking_json, "red")
-                                            logging.warning(interlocking_json)
+                                            safe_insert(f"{interlocking_json}", "red")
+                                            logging.warning(f"{interlocking_json}")
                                             conn.send("FAILED".encode('UTF-8'))
                                             break
 
@@ -1716,6 +1716,156 @@ def worker(conn, addr):
                             green_label.configure(image=image_green)
                             red_label.configure(image=image_red_full)
 
+                            cadena = ""
+
+                    case "container":
+                        response_json = ""
+                        request_json = ""
+                        serial_container = ""
+
+                        if len(option) == 3 and option[-1] == '1/':
+                            contenedor_json = invoke_api.invocke_api_conduit_multimedia(option[1])
+
+                            if contenedor_json[0] == 'FAILED':
+                                safe_insert(f"{contenedor_json[1]}\n{contenedor_json[2]}", "red")
+                                logging.warning(f"{contenedor_json[1]}\n{contenedor_json[2]}")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
+                            response_json = contenedor_json[1]
+                            request_json = contenedor_json[2]
+                            serial_container = contenedor_json[3]
+
+                            save_container = conexion.continer_store(serial_container,option[1])
+
+                            if save_container == 'FAILED':
+                                safe_insert(f"Please check the part and serial number entered into the database.", "red")
+                                logging.warning(f"Please check the part and serial number entered into the database.")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
+                            logging.info(f"[CONDUIT REQUEST]:\n {json.dumps(response_json, indent=4)}")
+                            logging.info(f"[CONDUIT RESPONSE]:\n {json.dumps(request_json, indent=4)}")
+                            logging.info(f"[CONTAINER NUMBER]:{serial_container}")
+
+                            pantalla_final = (
+                                "Command received-> "+comando_completo+"\n"+"Command PASSED"
+                                f"[CONDUIT REQUEST]:\n {json.dumps(response_json, indent=4)}"
+                                f"[API UNIT RESPONSE]:\n{json.dumps(request_json, indent=4, ensure_ascii=False)}\n\n"
+                                f"[CONTAINER NUMBER]:{serial_container}"
+                            )
+                            safe_insert(pantalla_final, "green")
+                            conn.send("PASSED".encode('UTF-8'))
+                        else:
+                            try:
+                                conn.send("FAILED".encode('UTF-8'))
+                            except Exception as e:
+                                safe_insert(f"Error enviando: {e}", "red")
+
+                            safe_insert("Command received-> "+comando_completo+"\n"+"Command FAILED", "red")
+
+                            conexionBitacora.event("SPP-002","|Command received| "+comando_completo,month,day)
+                            conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+                            
+                            green_label.configure(image=image_green)
+                            red_label.configure(image=image_red_full)
+                            
+                            cadena = ""
+
+                    case "photo":
+                        
+                        if len(option) == 3 and option[-1] == '1/':
+                            element = []
+
+                            api_multimedia = invoke_api.invocke_multimedia_identifier(option[1])
+
+                            if api_multimedia[0] == 'FAILED':
+                                safe_insert(f"{api_multimedia[1]}", "red")
+                                logging.warning(f"{api_multimedia[1]}")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
+
+                            element.append(api_multimedia[4]) # Base64
+                            element.append(api_multimedia[3]) # identificador
+                            element.append(option[1])
+
+                            foto = api_multimedia[4]
+                            # print(element)
+                            save_foto = conexion.parameters_graph(element)
+
+                            if save_foto != 'PASSED':
+                                safe_insert(f"Please review the data to be stored in the database", "red")
+                                logging.warning(f"Please review the data to be stored in the database")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
+                            multimedia = invoke_api.invocke_multimedia(api_multimedia[3])
+
+                            if multimedia[0] == 'FAILED':
+                                safe_insert(f"[RESPONSE]:\n{multimedia[1]}\n[URL]:\n{multimedia[2]}", "red")
+                                logging.warning(f"[RESPONSE]:\n{multimedia[1]}\n[URL]:\n{multimedia[2]}")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
+                            safe_insert(f"Command received->{comando_completo}\nCommand PASSED\n\n[API RESPONSE]:\n{json.dumps(api_multimedia[2], indent=4)}\n\n[IDENTIFIER]:\n{api_multimedia[3]}\n\n[PHOTO]:\n{foto[:300]}\n\n[MULTIMEDIA URL]:\n{multimedia[2]}\n\n[RESPONSE API MULTIMEDA]:\n{json.dumps(multimedia[1], indent=4)}", "green")
+                            logging.info(f"[API RESPONSE]:\n{json.dumps(api_multimedia[2], indent=4)}\n[IDENTIFIER]:\n{api_multimedia[3]}\n[MULTIMEDIA URL]:\n{multimedia[2]}\n[RESPONSE API MULTIMEDA]:\n{json.dumps(multimedia[1], indent=4)}")
+                            # logging.info(f"[MULTIMEDIA JSON]:\n{api_multimedia[1]}\n[API RESPONSE]:\n{json.dumps(api_multimedia[2], indent=4)}\n[IDENTIFIER]:\n{api_multimedia[3]}\n[MULTIMEDIA URL]:\n{multimedia[2]}\n[RESPONSE API MULTIMEDA]:\n{json.dumps(multimedia[1], indent=4)}")
+                            conn.send("PASSED".encode('UTF-8'))
+
+                        else:
+                            try:
+                                conn.send("FAILED".encode('UTF-8'))
+                            except Exception as e:
+                                safe_insert(f"Error enviando: {e}", "red")
+                        
+                            safe_insert("Command received-> "+comando_completo+"\n"+"Command FAILED", "red")
+                        
+                            conexionBitacora.event("SPP-002","|Command received| "+comando_completo,month,day)
+                            conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+                                                    
+                            green_label.configure(image=image_green)
+                            red_label.configure(image=image_red_full)
+                                                    
+                            cadena = ""
+
+                    case "traceability":
+                        if len(option) == 7 and option[-1] == '1/':
+                            traceability_api = invoke_api.invocke_traceability(option[1],option[2],option[3],option[4],option[5])
+
+                            if traceability_api[0] != 'PASSED':
+                                safe_insert(f"{traceability_api[1]}", "red")
+                                logging.warning(f"{traceability_api[1]}")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
+                            pantalla_end = (
+                                f"Command received-> {comando_completo}\nCommand TRACEABILITY PASSED\n"
+                                f"\n[TRACEABILITY JSON]:\n{json.dumps(traceability_api[1], indent=4, ensure_ascii=False)}\n\n"
+                                f"[TRACEABILITY RESPONSE]:\n{json.dumps(traceability_api[2], indent=2)}\n\n"
+                            )
+
+                            safe_insert(pantalla_end, "green")
+                            logging.info(f"{pantalla_end}")
+                            conn.send("PASSED".encode('UTF-8'))
+                            conexionBitacora.event("ENDP-001", "|Command received| " + cadena, month, day)
+                            conexionBitacora.event("CMD-P001", "|Command,PASSED|", month, day)
+                            green_label.configure(image=image_green_full)
+                            red_label.configure(image=image_red)
+                        else:
+                            try:
+                                conn.send("FAILED".encode('UTF-8'))
+                            except Exception as e:
+                                safe_insert(f"Error enviando: {e}", "red")
+                                                
+                                safe_insert("Command received-> "+comando_completo+"\n"+"Command FAILED", "red")
+                                                
+                            conexionBitacora.event("SPP-002","|Command received| "+comando_completo,month,day)
+                            conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+                                                                            
+                            green_label.configure(image=image_green)
+                            red_label.configure(image=image_red_full)
+                                                                            
                             cadena = ""
                     case _:
                         safe_insert("Command received-> "+cadena+"\n"+"Command FAILED"+"\n", "red")
