@@ -4225,6 +4225,46 @@ def get_container(serial_number):
         print(f"[ERROR] Error en función configurador(): {e}")
         return "FAILED"
 
+############################################################################################################################################
+################################################################# status de la pieza y contenedor ###########################################################################
+def update_status_part_container(serial_number):
+    try:
+        # --- Obtener part activo ---
+        cursor = conn.cursor()
+        cursor.execute("SELECT part_id, part_number, model_id FROM part WHERE status_id = 3 AND part_number = %s ORDER BY part_id DESC LIMIT 1",(serial_number,))
+        part = cursor.fetchone()
+        cursor.close()
+    
+        if not part:
+            # print("[ERROR] No se encontró una pieza activa.")
+            return "FAILED"
+    
+        part_id = part[0]
+    
+        # --- Desactivar componente ---
+        cursor = conn.cursor()
+        cursor.execute("UPDATE container SET status_serial_number_id = ? WHERE status_serial_number_id = ? AND part_id = ?", (3, 1, part_id))
+        conn.commit()
+        cursor.close()
+
+        # Desactivar piezas anteriores
+        cursor = conn.cursor()
+        cursor.execute("UPDATE part SET status_id = ? WHERE status_id = ? AND part_number = ?", (2, 3, serial_number))
+        conn.commit()
+        cursor.close()
+    
+        return "PASSED"
+    
+    except mariadb.Error as e:
+        print(f"[DB ERROR] update_status_part_container(): {e}")
+        return "FAILED"
+    except Exception as e:
+        print(f"[ERROR] update_status_part_container(): {e}")
+        return "FAILED"
+
+############################################################################################################################################
+# print(update_status_part_container("P1472635-61-G:SE4A22172000000"))
+
 # print(get_container("P2013882-00-G:SANN26211000004"))
 
 # name = "P1895152-00-G:SHG2242791000290"

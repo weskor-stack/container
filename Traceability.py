@@ -1403,6 +1403,11 @@ def worker(conn, addr):
                                                 conexionBitacora.event("SPP-002","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
                                                 conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
 
+                                                try:
+                                                    conn.send("FAILED".encode('UTF-8'))
+                                                except Exception as e:
+                                                    safe_insert(f"Error enviando: {e}", "red")
+
                                                 green_label.configure(image=image_green)
                                                 red_label.configure(image=image_red_full)
                                                 pieza = ""
@@ -1499,7 +1504,12 @@ def worker(conn, addr):
                                         
                                             conexionBitacora.event("SPP-002","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
                                             conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
-                                        
+
+                                            try:
+                                                conn.send("FAILED".encode('UTF-8'))
+                                            except Exception as e:
+                                                safe_insert(f"Error enviando: {e}", "red")
+
                                             green_label.configure(image=image_green)
                                             red_label.configure(image=image_red_full)
                                             pieza = ""
@@ -1974,6 +1984,83 @@ def worker(conn, addr):
                             red_label.configure(image=image_red_full)
                                                                             
                             cadena = ""
+
+                    case "print":
+                        if len(option) == 3 and option[-1] == '1/':
+                            name_piece =option[1]
+                            respuesta_conduit = invoke_api.invocke_print_conduit(option[1])
+                            
+                            if respuesta_conduit[0] == "FAILED":
+                                safe_insert(f"Command received-> {comando_completo} Component: {name_piece}\n" f"Command COMPONENT FAILED\n{respuesta_conduit[1]}n{respuesta_conduit[2]}", "red")
+                                logging.error(f"Command received-> {comando_completo} Component: {name_piece}\n" f"Command COMPONENT FAILED\n{respuesta_conduit[1]}n{respuesta_conduit[2]}")
+                            
+                                conexionBitacora.event("SPP-002","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
+                                conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+
+                                try:
+                                    conn.send("FAILED".encode('UTF-8'))
+                                except Exception as e:
+                                    safe_insert(f"Error enviando: {e}", "red")
+
+                                green_label.configure(image=image_green)
+                                red_label.configure(image=image_red_full)
+                                pieza = ""
+                                                                            
+                                entry_piece.configure(state="readonly", textvariable=piece_name)
+                                piece_name.set(name_piece)
+                                break
+                            
+                            pantalla_final = (
+                                "Command received-> "+comando_completo+"\n"+"Command COMPONENT PASSED\n\n"
+                                f"[CONDUIT REQUEST]:\n {json.dumps(respuesta_conduit[1], indent=4)}\n\n"
+                                f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_conduit[2], indent=4, ensure_ascii=False)}\n\n"
+                                f"[MESSAGE]:{respuesta_conduit[3]}"
+                            )
+                            safe_insert(pantalla_final, "green")
+                            logging.info(pantalla_final)
+                            # safe_insert("Command received-> "+comando_completo+" Component: "+name_piece+"\n"+"Command COMPONENT PASSED"+"\n")
+
+                            update_status_part_container = conexion.update_status_part_container(option[1])
+
+                            if update_status_part_container == 'FAILED':
+                                safe_insert(f"Please check the part and serial number entered into the database.", "red")
+                                logging.warning(f"Please check the part and serial number entered into the database.")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+                                      
+                            conexionBitacora.event("SPP-001","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
+                            conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
+
+                            try:
+                                conn.send("PASSED".encode('UTF-8'))
+                            except Exception as e:
+                                conn.send("FAILED".encode('UTF-8'))
+                                safe_insert(f"Error enviando: {e}", "red")
+
+                            green_label.configure(image=image_green_full)
+                            red_label.configure(image=image_red)
+                            pieza = name_piece
+                                            
+                            entry_piece.configure(state="readonly", textvariable=piece_name)
+                            piece_name.set(name_piece)
+                            break
+                        else:
+                            try:
+                                conn.send("FAILED".encode('UTF-8'))
+                            except Exception as e:
+                                safe_insert(f"Error enviando: {e}", "red")
+                                                
+                            safe_insert("Command received-> "+comando_completo+"\n"+"Command FAILED", "red")
+                                                
+                            conexionBitacora.event("SPP-002","|Command received| "+comando_completo,month,day)
+                            conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+                                                                            
+                            green_label.configure(image=image_green)
+                            red_label.configure(image=image_red_full)
+                                                                            
+                            cadena = ""
+
+
                     case _:
                         safe_insert("Command received-> "+cadena+"\n"+"Command FAILED"+"\n", "red")
                         try:
