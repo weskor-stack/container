@@ -219,6 +219,44 @@ def invocke_traceability(serial_number, resultado, tipo, error_code, comentario)
 
     return "PASSED",traceability_data, data_traceability,""
 
+def invocke_add_unit_conduit(unidad,pieza):
+    url_data = conexion.obtener_url_api()
+    if url_data == "FAILED" or not url_data:
+        return "FAILED","Database query error in obtener_url_api",""
+    
+    url_conduit = url_data[3][0]   # CONDUIT AP
+    
+    unidad_json = container_json.add_component(pieza, unidad)
+
+    try:
+        response_conduit = requests.post(
+            url_conduit,
+            json=unidad_json,
+            timeout=30
+        )
+    except Exception as e:
+        return "FAILED",f"Error invoking interlocking API: {e}","",""
+    
+    if response_conduit.status_code != 200:
+        return "FAILED",f"Conduit API request failed with status code: {response_conduit.status_code}",f"RESPONSE:\n{json.dumps(response_conduit.json(), indent=4)}",""
+        
+    data_conduit = response_conduit.json()
+
+    print(f"RESPONSE CONDUIT:\n{json.dumps(data_conduit, indent=4)}")
+
+    data_unit = data_conduit.get('transaction_responses', {})
+    data_command = data_unit[0]
+    data_commands = data_command.get('command_responses',{})
+    data_commands = data_commands[0]
+    data_results = data_commands.get('results',{})
+    data_results = data_results[0]
+    results = data_results.get('message','')
+    
+    
+    return "PASSED", unidad_json, data_conduit, results
+
+# print(invocke_add_unit_conduit("TEST-12635565465465465","P1472635-61-G:SE4A22172000000"))
+
 # print(invocke_traceability(serial_number = "P1472635-61-G:SE4A22172000000",
 #         resultado = "PASS",
 #         tipo="PRODUCTION",
