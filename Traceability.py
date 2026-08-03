@@ -330,7 +330,7 @@ entry_piece.place(x=500, y=60)
 
 texto = ctk.CTkTextbox(master=frame, height=480, width=700, state="disabled")
 texto.place(x=50, y=150)
-font=ctk.CTkFont(family='Arial', size=12)
+font=ctk.CTkFont(family='Arial', size=14)
 
 lbl_comand = ctk.CTkLabel(master=frame, text='Command:')
 
@@ -1297,165 +1297,274 @@ def worker(conn, addr):
                             # For Unix/Linux/Mac operating systems
                             os.system('sudo shutdown now')
                     case "Component":
-                        pieza_padre = piece_name.get()
-                        entry_piece.focus_set()
+                        if len(option) == 3 and option[-1] == '1/':
+                            pieza_padre = option[1]#piece_name.get()
+                            contador_componentes = conexion.contador_componentes(option[1])
+                            contador_componentes = contador_componentes[0]
+                        elif len(option) == 4 and option[-1] == '1/':
+                            pieza_padre = option[2]#piece_name.get()
+                            contador_componentes = conexion.contador_componentes(option[2])
+                            contador_componentes = contador_componentes[0]
                         
+                        qty_pcb = conexion.configurador()
+                        qty_pcb = qty_pcb[14]
                         
-                        if len(option) == 2 and option[-1] == '1/':
-                            entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
-                            piece_name.set("")
-                            safe_insert("You can scan the part.", "green")
-
-                            green_label.configure(image=image_green_full)
-                            red_label.configure(image=image_red)
-
+                        # print(f"Cantiad de PCBA registradas:{contador_componentes}")
+                        # print(f"Cantiad de PCBA configuradas:{qty_pcb}")
+                        
+                        if float(qty_pcb) == float(contador_componentes):
                             try:
-                                start_time = time.time()
-                                while True:
-                                    name_piece = entry_piece.get()
-                                    time.sleep(0.05)
+                                conn.send("QTY_FULL".encode('UTF-8'))
+                                safe_insert(f"Command received-> {comando_completo}\nCommand COMPONENT PASSED\nThe maximum number of components to be stored in the container has already been reached","orange")
+                                logging.warning(f"Command received-> {comando_completo}\nCommand COMPONENT PASSED\nThe maximum number of components to be stored in the container has already been reached")
 
-                                    elapsed_time = time.time() -  start_time
-                                    if len(name_piece) == 0:
-                                        conn.settimeout(None)
-                                        if elapsed_time >= 240: #4 minutos
-                                            entry_piece.configure(state="readonly", textvariable=piece_name)
-                                            piece_name.set("")
-                                            safe_insert("Start the process again.")
-                                            try:
-                                                conn.send("START-AGAIN".encode('UTF-8'))
-                                            except Exception as e:
-                                                safe_insert(f"Error enviando: {e}", "red")
-                                            contador = 0
-                                            break
-                                        else:
-                                            pass
-                                    if len(name_piece) > 13:
-                                        conn.settimeout(None)
-                                        piece = name_piece + ", PASSED"
-                                        try:
-                                            conn.send(piece.encode('UTF-8'))
-                                        except Exception as e:
-                                            safe_insert(f"Error enviando: {e}", "red")
-                                        entry_piece.configure(state="readonly", textvariable=piece_name)
-                                        piece_name.set(name_piece)
-                                                    
-                                        conexion.component_store(name_piece)
-                                        safe_insert("Command received-> "+cadena+" actuator: "+name_piece+"\n"+"Command COMPONENT PASSED"+"\n")
-                                            
-                                        conexionBitacora.event("SPP-001","|Command received| "+cadena+" actuator: "+name_piece,month,day)
-                                        conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
-
-                                        green_label.configure(image=image_green_full)
-                                        red_label.configure(image=image_red)
-                                        pieza = name_piece
-                                        
-                                        entry_piece.configure(state="readonly", textvariable=piece_name)
-                                        piece_name.set(pieza_padre)
-                                        break
-
-                                    elif len(name_piece) == 0 or len(name_piece) < 14:
-                                        # print("<30")
-                                        conn.settimeout(0.1)
-                                        try:
-                                            reset = conn.recv(1024)
-                                            conn.settimeout(None)
-                                            if reset:
-                                                # print(reset)
-                                                reset = reset.decode('utf-8')
-                                                entry_piece.configure(state="readonly", textvariable=piece_name)
-                                                piece_name.set("")
-                                                try:
-                                                    conn.send("RESET".encode('UTF-8'))
-                                                except Exception as e:
-                                                    safe_insert(f"Error enviando: {e}", "red")
-                                                safe_insert("Command received-> "+cadena+" RESET PROCESS-> Command: "+reset+"\n"+"Command COMPONENT PASSED")
-                                                
-                                                conexionBitacora.event("RP-002","|Command received| "+reset,month,day)
-                                                conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
-
-                                                green_label.configure(image=image_green_full)
-                                                red_label.configure(image=image_red)
-                                                break
-                                        except socket.timeout:
-                                            # print("Timeout ocurred, no data received")
-                                            # contador = contador + 1
-                                            # print(contador)
-                                            pass
-                                        except ConnectionResetError:
-                                            # print("Connection was forcibly closed by the remote host")
-                                            safe_insert("Connection was forcibly closed by the remote host"+"\n"+"Connection error!"+"\n"+"Contact technical support!")
-                                            pass
-
-                            except TypeError as e:
-                                print("Error: ", e)
-                                logging.error(f"Connection was closed"+"\n"+f"Error: {str(e)}"+"\n"+"Contact technical support!")
-                                safe_insert("Connection was closed"+"\n"+f"Error: {str(e)}"+"\n"+"Contact technical support!", "red")
-                                cadena = ""
-                        
-                        elif len(option) == 3 and option[-1] == '1/':
-                            entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
-                            piece_name.set("")
-                            # safe_insert("You can scan the part.", "green")
-
-                            green_label.configure(image=image_green_full)
-                            red_label.configure(image=image_red)
-
-                            name_piece =option[1]
-
-                            if len(name_piece) > 13:
-                                piece = name_piece + ", PASSED"
-                                try:
-                                    conn.send(piece.encode('UTF-8'))
-                                except Exception as e:
-                                    safe_insert(f"Error enviando: {e}", "red")
-                                entry_piece.configure(state="readonly", textvariable=piece_name)
-                                piece_name.set(name_piece)
-                                                    
-                                conexion.component_store(name_piece)
-                                safe_insert("Command received-> "+cadena+" actuator: "+name_piece+"\n"+"Command COMPONENT PASSED")
-                                    
-                                conexionBitacora.event("SPP-001","|Command received| "+cadena+" actuator: "+name_piece,month,day)
+                                conexionBitacora.event("SPP-001","|Command received| "+comando_completo+" Piece: "+pieza_padre,month,day)
                                 conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
-
+                                
                                 green_label.configure(image=image_green_full)
                                 red_label.configure(image=image_red)
-
+                                                                        
                                 entry_piece.configure(state="readonly", textvariable=piece_name)
                                 piece_name.set(pieza_padre)
+                                break
+                            except Exception as e:
+                                safe_insert(f"Error enviando: {e}", "red")
+                                break
 
-                                pieza = name_piece
-
-                            else:
-                                conn.settimeout(None)
-                                entry_piece.configure(state="readonly", textvariable=piece_name)
-                                piece_name.set("")
-                                            
-                                safe_insert("Command received-> "+cadena+" part: "+name_piece+"\n"+"Command FAILED")
-
-                                try:
-                                    conn.send("FAILED".encode('UTF-8'))
-                                    conn.send("verify data".encode('UTF-8'))
-                                except Exception as e:
-                                    safe_insert(f"Error enviando: {e}", "red")
-                                            
-                                conexionBitacora.event("SPP-002","|Command received| "+cadena+" part: "+name_piece,month,day)
+                        elif float(qty_pcb) < float(contador_componentes):
+                            try:
+                                conn.send("FAILED".encode('UTF-8'))
+                                safe_insert(f"Command received-> {comando_completo}\nCommand COMPONENT PASSED\nThe maximum number of components to be stored in the container has already been reached","red")
+                                logging.error(f"Command received-> {comando_completo}\nCommand COMPONENT PASSED\nThe maximum number of components to be stored in the container has already been reached")
                                 conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
 
                                 green_label.configure(image=image_green)
                                 red_label.configure(image=image_red_full)
-                                                
+                                
+                                cadena = ""
                                 break
+                            except Exception as e:
+                                safe_insert(f"Error enviando: {e}", "red")
+                                conn.send("FAILED".encode('UTF-8'))
+                                break
+
                         else:
-                            safe_insert("Command received-> "+cadena+"\n"+"Command FAILED", "red")
+                        
+                            entry_piece.focus_set()
+                        
+                            if len(option) == 3 and option[-1] == '1/':
+                                entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
+                                piece_name.set("")
+                                safe_insert("You can scan the componet.", "green")
 
-                            conexionBitacora.event("SPP-002","|Command received| "+cadena,month,day)
-                            conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+                                green_label.configure(image=image_green_full)
+                                red_label.configure(image=image_red)
 
-                            green_label.configure(image=image_green)
-                            red_label.configure(image=image_red_full)
+                                try:
+                                    start_time = time.time()
+                                    while True:
+                                        name_piece = entry_piece.get()
+                                        time.sleep(0.05)
 
-                            cadena = ""
+                                        elapsed_time = time.time() -  start_time
+                                        if len(name_piece) == 0:
+                                            conn.settimeout(None)
+                                            if elapsed_time >= 240: #4 minutos
+                                                entry_piece.configure(state="readonly", textvariable=piece_name)
+                                                piece_name.set("")
+                                                safe_insert("Start the process again.")
+                                                try:
+                                                    conn.send("START-AGAIN".encode('UTF-8'))
+                                                except Exception as e:
+                                                    safe_insert(f"Error enviando: {e}", "red")
+                                                contador = 0
+                                                break
+                                            else:
+                                                pass
+                                        if len(name_piece) > 13:
+                                            conn.settimeout(None)
+                                            piece = name_piece + ", PASSED"
+
+                                            if float(qty_pcb) > float(contador_componentes):
+                                                try:
+                                                    conn.send("PASSED".encode('UTF-8'))
+                                                except Exception as e:
+                                                    safe_insert(f"Error enviando: {e}", "red")
+
+                                            entry_piece.configure(state="readonly", textvariable=piece_name)
+                                            piece_name.set(name_piece)
+
+                                            respuesta_conduit = invoke_api.invocke_add_unit_conduit(name_piece, option[1])
+
+                                            if respuesta_conduit[0] == "FAILED":
+                                                safe_insert(f"Command received-> {comando_completo} Component: {name_piece}\n" f"Command COMPONENT FAILED\n{respuesta_conduit[1]}n{respuesta_conduit[2]}", "red")
+                                                logging.error(f"Command received-> {comando_completo} Component: {name_piece}\n" f"Command COMPONENT FAILED\n{respuesta_conduit[1]}n{respuesta_conduit[2]}")
+
+                                                conexionBitacora.event("SPP-002","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
+                                                conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+
+                                                green_label.configure(image=image_green)
+                                                red_label.configure(image=image_red_full)
+                                                pieza = ""
+                                                
+                                                entry_piece.configure(state="readonly", textvariable=piece_name)
+                                                piece_name.set(pieza_padre)
+                                                break
+
+                                            conexion.component_store(name_piece,option[1])
+                                            pantalla_final = (
+                                                "Command received-> "+comando_completo+"\n"+"Command COMPONENT PASSED\n\n"
+                                                f"[CONDUIT REQUEST]:\n {json.dumps(respuesta_conduit[1], indent=4)}\n\n"
+                                                f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_conduit[2], indent=4, ensure_ascii=False)}\n\n"
+                                                f"[MESSAGE]:{respuesta_conduit[3]}"
+                                            )
+                                            safe_insert(pantalla_final, "green")
+                                            logging.info(pantalla_final)
+                                            # safe_insert("Command received-> "+comando_completo+" Component: "+name_piece+"\n"+"Command COMPONENT PASSED"+"\n")
+                                                
+                                            conexionBitacora.event("SPP-001","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
+                                            conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
+
+                                            green_label.configure(image=image_green_full)
+                                            red_label.configure(image=image_red)
+                                            pieza = name_piece
+                                            
+                                            entry_piece.configure(state="readonly", textvariable=piece_name)
+                                            piece_name.set(pieza_padre)
+                                            break
+
+                                        elif len(name_piece) == 0 or len(name_piece) < 14:
+                                            # print("<30")
+                                            conn.settimeout(0.1)
+                                            try:
+                                                reset = conn.recv(1024)
+                                                conn.settimeout(None)
+                                                if reset:
+                                                    # print(reset)
+                                                    reset = reset.decode('utf-8')
+                                                    entry_piece.configure(state="readonly", textvariable=piece_name)
+                                                    piece_name.set("")
+                                                    try:
+                                                        conn.send("RESET".encode('UTF-8'))
+                                                    except Exception as e:
+                                                        safe_insert(f"Error enviando: {e}", "red")
+                                                    safe_insert("Command received-> "+cadena+" RESET PROCESS-> Command: "+reset+"\n"+"Command COMPONENT PASSED")
+                                                    
+                                                    conexionBitacora.event("RP-002","|Command received| "+reset,month,day)
+                                                    conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+
+                                                    green_label.configure(image=image_green_full)
+                                                    red_label.configure(image=image_red)
+                                                    break
+                                            except socket.timeout:
+                                                # print("Timeout ocurred, no data received")
+                                                # contador = contador + 1
+                                                # print(contador)
+                                                pass
+                                            except ConnectionResetError:
+                                                # print("Connection was forcibly closed by the remote host")
+                                                safe_insert("Connection was forcibly closed by the remote host"+"\n"+"Connection error!"+"\n"+"Contact technical support!")
+                                                pass
+
+                                except TypeError as e:
+                                    print("Error: ", e)
+                                    logging.error(f"Connection was closed"+"\n"+f"Error: {str(e)}"+"\n"+"Contact technical support!")
+                                    safe_insert("Connection was closed"+"\n"+f"Error: {str(e)}"+"\n"+"Contact technical support!", "red")
+                                    cadena = ""
+                            
+                            elif len(option) == 4 and option[-1] == '1/':
+                                entry_piece.configure(state=ctk.NORMAL, textvariable=piece_name)
+                                piece_name.set("")
+                                # safe_insert("You can scan the part.", "green")
+
+                                green_label.configure(image=image_green_full)
+                                red_label.configure(image=image_red)
+
+                                name_piece =option[1]
+
+                                if len(name_piece) > 13:
+                                    conn.settimeout(None)
+                                    piece = name_piece + ", PASSED"
+                                
+                                    if float(qty_pcb) > float(contador_componentes):
+                                
+                                        entry_piece.configure(state="readonly", textvariable=piece_name)
+                                        piece_name.set(name_piece)
+
+                                        respuesta_conduit = invoke_api.invocke_add_unit_conduit(name_piece, option[2])
+                                        
+                                        if respuesta_conduit[0] == "FAILED":
+                                            safe_insert(f"Command received-> {comando_completo} Component: {name_piece}\n" f"Command COMPONENT FAILED\n{respuesta_conduit[1]}n{respuesta_conduit[2]}", "red")
+                                            logging.error(f"Command received-> {comando_completo} Component: {name_piece}\n" f"Command COMPONENT FAILED\n{respuesta_conduit[1]}n{respuesta_conduit[2]}")
+                                        
+                                            conexionBitacora.event("SPP-002","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
+                                            conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+                                        
+                                            green_label.configure(image=image_green)
+                                            red_label.configure(image=image_red_full)
+                                            pieza = ""
+                                                                                        
+                                            entry_piece.configure(state="readonly", textvariable=piece_name)
+                                            piece_name.set(pieza_padre)
+                                            break
+                                        
+                                        conexion.component_store(name_piece,option[2])
+                                        pantalla_final = (
+                                            "Command received-> "+comando_completo+"\n"+"Command COMPONENT PASSED\n\n"
+                                            f"[CONDUIT REQUEST]:\n {json.dumps(respuesta_conduit[1], indent=4)}\n\n"
+                                            f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_conduit[2], indent=4, ensure_ascii=False)}\n\n"
+                                            f"[MESSAGE]:{respuesta_conduit[3]}"
+                                        )
+                                        safe_insert(pantalla_final, "green")
+                                        logging.info(pantalla_final)
+                                                                                
+                                        conexionBitacora.event("SPP-001","|Command received| "+comando_completo+" Component: "+name_piece,month,day)
+                                        conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
+
+                                        try:
+                                            conn.send("PASSED".encode('UTF-8'))
+                                        except Exception as e:
+                                            conn.send("FAILED".encode('UTF-8'))
+                                            safe_insert(f"Error enviando: {e}", "red")
+                                
+                                        green_label.configure(image=image_green_full)
+                                        red_label.configure(image=image_red)
+                                        pieza = name_piece
+                                                                            
+                                        entry_piece.configure(state="readonly", textvariable=piece_name)
+                                        piece_name.set(pieza_padre)
+                                        break
+
+                                else:
+                                    conn.settimeout(None)
+                                    entry_piece.configure(state="readonly", textvariable=piece_name)
+                                    piece_name.set("")
+                                                
+                                    safe_insert("Command received-> "+cadena+" part: "+name_piece+"\n"+"Command FAILED")
+
+                                    try:
+                                        conn.send("FAILED".encode('UTF-8'))
+                                        conn.send("verify data".encode('UTF-8'))
+                                    except Exception as e:
+                                        safe_insert(f"Error enviando: {e}", "red")
+                                                
+                                    conexionBitacora.event("SPP-002","|Command received| "+cadena+" part: "+name_piece,month,day)
+                                    conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+
+                                    green_label.configure(image=image_green)
+                                    red_label.configure(image=image_red_full)
+                                                    
+                                    break
+                            else:
+                                safe_insert("Command received-> "+cadena+"\n"+"Command FAILED", "red")
+
+                                conexionBitacora.event("SPP-002","|Command received| "+cadena,month,day)
+                                conexionBitacora.event("CMD-F001","|Command,FAILED|",month,day)
+
+                                green_label.configure(image=image_green)
+                                red_label.configure(image=image_red_full)
+
+                                cadena = ""
                     
                     case "validate":
                         pieza_padre = piece_name.get()
@@ -1511,7 +1620,6 @@ def worker(conn, addr):
                                                     entry_piece.configure(state="readonly", textvariable=piece_name)
                                                     piece_name.set(name_piece)
                                                                         
-                                                    # conexion.component_store(name_piece)
                                                     safe_insert("Command received-> "+cadena+" PCBA/Housing: "+name_piece+"\n"+"Command VALIDATE PASSED", "green")
                                                     logging.info("Command received-> "+cadena+" PCBA/Housing: "+name_piece+"\n"+"Command VALIDATE PASSED")
                                                         
@@ -1634,7 +1742,6 @@ def worker(conn, addr):
                                             entry_piece.configure(state="readonly", textvariable=piece_name)
                                             piece_name.set(name_piece)
                                                                 
-                                            # conexion.component_store(name_piece)
                                             safe_insert("Command received-> "+cadena+" PCBA/Housing: "+name_piece+"\n"+"Command VALIDATE PASSED", "green")
                                             logging.info("Command received-> "+cadena+" PCBA/Housing: "+name_piece+"\n"+"Command VALIDATE PASSED")
                                                 

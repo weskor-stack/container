@@ -1646,7 +1646,7 @@ def electrical_data2(part_id):
         electricalJson.close()
 
 ########################################################## REGISTRO DE COMPONENTES ####################################################
-def component_store(component_name,descripcion,parte):
+def component_store(component_name,parte):
     try:
         # --- Obtener part activo ---
         cursor = conn.cursor()
@@ -1663,10 +1663,10 @@ def component_store(component_name,descripcion,parte):
         # --- Insertar componente ---
         cursor = conn.cursor()
         sql = """
-            INSERT INTO component (part_id, component_name, description)
-            VALUES (?, ?, ?)
+            INSERT INTO component (part_id, component_name)
+            VALUES (?, ?)
         """
-        cursor.execute(sql, (part_id, component_name, descripcion))
+        cursor.execute(sql, (part_id, component_name))
         conn.commit()
         cursor.close()
 
@@ -4187,6 +4187,45 @@ def continer_store(container,parte):
         return "FAILED"
 
 ############################################################################################################################################
+################################################################# Contenedor ###########################################################################
+def get_container(serial_number):
+    try:
+        # --- Obtener part activo ---
+        cursor = conn.cursor()
+        cursor.execute("SELECT part_id, part_number, model_id FROM part WHERE status_id = 3 AND part_number = %s ORDER BY part_id DESC LIMIT 1",(serial_number,))
+        part = cursor.fetchone()
+        cursor.close()
+        
+        if not part:
+            # print("[ERROR] No se encontró una pieza activa.")
+            return "FAILED"
+        
+        part_id = part[0]
+        
+        conn.commit() 
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT data, 
+                   status_serial_number_id,
+                   part_id
+            FROM container 
+            WHERE part_id = %s
+            ORDER BY serial_number_id DESC
+            LIMIT 1
+        """, (part_id,))
+        datos_config = cursor.fetchone()
+        cursor.close()
+
+        # if not datos_config:
+        #     print("[INFO] La tabla configurador está vacía. Esperando la primera inserción.")
+        #     return "No_data"
+            
+        return datos_config
+    except Exception as e:
+        print(f"[ERROR] Error en función configurador(): {e}")
+        return "FAILED"
+
+# print(get_container("P2013882-00-G:SANN26211000004"))
 
 # name = "P1895152-00-G:SHG2242791000290"
 # parameters_pressfit(['F', '50', '10', '100', 'Numeric', 'N', 'PASSED', 'Comentarios', 'dwell_time'],name)
@@ -4200,3 +4239,4 @@ def continer_store(container,parte):
 # welding_data(1)
 # atributos()
 # get_urls()
+# print(contador_componentes("P2013882-00-G:SANN26211000004"))
