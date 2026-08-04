@@ -75,7 +75,7 @@ class FormularioApiConfig:
         tk.Label(header, text="⚙ Configurador de URLs",
                  font=FONT_HEAD, bg=BG_HEADER, fg=FG_WHITE).pack(anchor="w")
 
-        tk.Label(header, text="Todas las APIs son obligatorias",
+        tk.Label(header, text="Todas los campos son obligatorios",
                  font=FONT_SUBHEAD, bg=BG_HEADER, fg="#BBDEFB").pack(anchor="w", pady=(4, 0))
 
         # --- BOTONES ---
