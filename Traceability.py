@@ -1303,7 +1303,7 @@ def worker(conn, addr):
                             contador_componentes = contador_componentes[0]
                         elif len(option) == 4 and option[-1] == '1/':
                             pieza_padre = option[2]#piece_name.get()
-                            contador_componentes = conexion.contador_componentes(option[2])
+                            contador_componentes = conexion.contador_componentes(pieza_padre)
                             contador_componentes = contador_componentes[0]
                         
                         qty_pcb = conexion.configurador()
@@ -1314,7 +1314,8 @@ def worker(conn, addr):
                         
                         if float(qty_pcb) == float(contador_componentes):
                             try:
-                                conn.send("QTY_FULL".encode('UTF-8'))
+                                # conn.send("QTY_FULL".encode('UTF-8'))
+                                conn.send("FAILED".encode('UTF-8'))
                                 safe_insert(f"Command received-> {comando_completo}\nCommand COMPONENT PASSED\nThe maximum number of components to be stored in the container has already been reached","orange")
                                 logging.warning(f"Command received-> {comando_completo}\nCommand COMPONENT PASSED\nThe maximum number of components to be stored in the container has already been reached")
 
@@ -1385,12 +1386,6 @@ def worker(conn, addr):
                                             conn.settimeout(None)
                                             piece = name_piece + ", PASSED"
 
-                                            if float(qty_pcb) > float(contador_componentes):
-                                                try:
-                                                    conn.send("PASSED".encode('UTF-8'))
-                                                except Exception as e:
-                                                    safe_insert(f"Error enviando: {e}", "red")
-
                                             entry_piece.configure(state="readonly", textvariable=piece_name)
                                             piece_name.set(name_piece)
 
@@ -1417,12 +1412,41 @@ def worker(conn, addr):
                                                 break
 
                                             conexion.component_store(name_piece,option[1])
+
                                             pantalla_final = (
                                                 "Command received-> "+comando_completo+"\n"+"Command COMPONENT PASSED\n\n"
                                                 f"[CONDUIT REQUEST]:\n {json.dumps(respuesta_conduit[1], indent=4)}\n\n"
                                                 f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_conduit[2], indent=4, ensure_ascii=False)}\n\n"
                                                 f"[MESSAGE]:{respuesta_conduit[3]}"
                                             )
+
+                                            contador_componentes = conexion.contador_componentes(option[1])
+                                            if float(qty_pcb) == float(contador_componentes[0]):
+                                                try:
+                                                    conn.send("QTY_FULL".encode('UTF-8'))
+                                                    safe_insert(pantalla_final,"green")
+                                                    logging.warning(pantalla_final)
+                                                                                        
+                                                    conexionBitacora.event("SPP-001","|Command received| "+comando_completo+" Piece: "+pieza_padre,month,day)
+                                                    conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
+                                                                                                                        
+                                                    green_label.configure(image=image_green_full)
+                                                    red_label.configure(image=image_red)
+                                                                                                                                                                
+                                                    entry_piece.configure(state="readonly", textvariable=piece_name)
+                                                    piece_name.set(pieza_padre)
+                                                    break
+                                                except Exception as e:
+                                                    safe_insert(f"Error enviando: {e}", "red")
+                                                    break
+                                            
+                                            if float(qty_pcb) > float(contador_componentes):
+                                                try:
+                                                    conn.send("PASSED".encode('UTF-8'))
+                                                except Exception as e:
+                                                    safe_insert(f"Error enviando: {e}", "red")
+
+
                                             safe_insert(pantalla_final, "green")
                                             logging.info(pantalla_final)
                                             # safe_insert("Command received-> "+comando_completo+" Component: "+name_piece+"\n"+"Command COMPONENT PASSED"+"\n")
@@ -1519,12 +1543,41 @@ def worker(conn, addr):
                                             break
                                         
                                         conexion.component_store(name_piece,option[2])
+
                                         pantalla_final = (
                                             "Command received-> "+comando_completo+"\n"+"Command COMPONENT PASSED\n\n"
                                             f"[CONDUIT REQUEST]:\n {json.dumps(respuesta_conduit[1], indent=4)}\n\n"
                                             f"[API UNIT RESPONSE]:\n{json.dumps(respuesta_conduit[2], indent=4, ensure_ascii=False)}\n\n"
                                             f"[MESSAGE]:{respuesta_conduit[3]}"
                                         )
+
+                                        contador_componentes = conexion.contador_componentes(option[2])
+                                        if float(qty_pcb) == float(contador_componentes[0]):
+                                            try:
+                                                conn.send("QTY_FULL".encode('UTF-8'))
+                                                safe_insert(pantalla_final,"green")
+                                                logging.warning(pantalla_final)
+                                                                                                                                
+                                                conexionBitacora.event("SPP-001","|Command received| "+comando_completo+" Piece: "+pieza_padre,month,day)
+                                                conexionBitacora.event("CMD-P001","|Command,PASSED|",month,day)
+                                                                                                                                                                
+                                                green_label.configure(image=image_green_full)
+                                                red_label.configure(image=image_red)
+                                                                                                                                                                                                        
+                                                entry_piece.configure(state="readonly", textvariable=piece_name)
+                                                piece_name.set(pieza_padre)
+                                                break
+                                            except Exception as e:
+                                                safe_insert(f"Error enviando: {e}", "red")
+                                                break
+                                                                                    
+                                        if float(qty_pcb) > float(contador_componentes):
+                                            try:
+                                                conn.send("PASSED".encode('UTF-8'))
+                                            except Exception as e:
+                                                safe_insert(f"Error enviando: {e}", "red")
+
+
                                         safe_insert(pantalla_final, "green")
                                         logging.info(pantalla_final)
                                                                                 
