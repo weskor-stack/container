@@ -2905,8 +2905,14 @@ def configurador_st40():
         conn = get_connection()
         cursor = conn.cursor()
         sql = """
-            SELECT machine_id, client_id, operator, password,
-                   model_id, process_name, print_macro, location, shop_flor
+            SELECT machine_id, 
+                   operator, 
+                   password,
+                   process_name, 
+                   program_name_version, 
+                   client_id, 
+                   print_macro, 
+                   qty_pcba
             FROM configurador
             LIMIT 1
         """
@@ -2917,30 +2923,29 @@ def configurador_st40():
         if registro:
             return registro
         else:
-            return ("", "", "", "", "", "", "", "", "")
+            return ("", "", "", "", "", "", "", "")
     except Exception as e:
         print(f"Error en conexion.configurador_st40: {e}")
         return "FAILED"
 
-def update_configurador_st40(machine_id, client_id, operator, password,
-                             model_id, process_name, print_macro, location, shop_flor):
+def update_configurador_st40(machine_id,  operator, password,
+                             process_name, program_name_version, client_id, print_macro, qty_pcba):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         sql = """
             UPDATE configurador
             SET machine_id = ?,
-                client_id = ?,
                 operator = ?,
                 password = ?,
-                model_id = ?,
                 process_name = ?,
+                program_name_version = ?,
+                client_id = ?,
                 print_macro = ?,
-                location = ?,
-                shop_flor = ?
+                qty_pcba = ?
         """
-        cursor.execute(sql, (machine_id, client_id, operator, password,
-                             model_id, process_name, print_macro, location, shop_flor))
+        cursor.execute(sql, (machine_id, operator, password,
+                             process_name, program_name_version, client_id, print_macro, qty_pcba))
         conn.commit()
         cursor.close()
         conn.close()
@@ -2950,18 +2955,18 @@ def update_configurador_st40(machine_id, client_id, operator, password,
             conn.rollback()
         raise Exception(f"Fallo en Base de Datos: {e}")
 
-def insert_configurador_st40(machine_id, client_id, operator, password,
-                             model_id, process_name, print_macro, location, shop_flor):
+def insert_configurador_st40(machine_id, operator, password,
+                            process_name, program_name_version, client_id, print_macro, qty_pcba):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         sql = """
-            INSERT INTO configurador (machine_id, client_id, operator, password,
-                                      model_id, process_name, print_macro, location, shop_flor)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO configurador (machine_id, operator, password,
+                                      process_name, program_name_version, client_id, print_macro, qty_pcba)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
-        cursor.execute(sql, (machine_id, client_id, operator, password,
-                             model_id, process_name, print_macro, location, shop_flor))
+        cursor.execute(sql, (machine_id, operator, password,
+                             process_name, program_name_version, client_id, print_macro, qty_pcba))
         conn.commit()
         cursor.close()
         conn.close()
